@@ -181,7 +181,7 @@
   /* Stats row */
   .stats {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 12px;
     margin-bottom: 16px;
   }
@@ -350,7 +350,12 @@
         <div class="stat-card">
           <div class="stat-label">Avg/Day</div>
           <div class="stat-value" id="statAvg">—</div>
-          <div class="stat-sub">your pace</div>
+          <div class="stat-sub">miles per day</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg Pace</div>
+          <div class="stat-value" id="statPace">—</div>
+          <div class="stat-sub">min/mile</div>
         </div>
       </div>
 
@@ -381,7 +386,7 @@ const METERS_PER_MILE = 1609.344;
 function save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
 function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
 
-const creds = load('strava_creds') || {};
+let creds = load('strava_creds') || {};
 
 // ── Boot ─────────────────────────────────────────────────
 window.addEventListener('load', () => {
@@ -507,6 +512,7 @@ async function fetchData() {
           runs.push({
             date: new Date(a.start_date_local),
             miles: a.distance / METERS_PER_MILE,
+            movingTime: a.moving_time,
             name: a.name,
           });
         }
@@ -534,19 +540,21 @@ function renderDashboard(runs) {
   const quota = daysStarted * QUOTA_PER_DAY;
 
   const totalMiles = runs.reduce((s, r) => s + r.miles, 0);
+  const totalSeconds = runs.reduce((s, r) => s + r.movingTime, 0);
   const delta = totalMiles - quota;
   const avgPerDay = totalMiles / daysElapsed;
+  const paceSecPerMile = totalMiles > 0 ? totalSeconds / totalMiles : 0;
+  const paceMins = Math.floor(paceSecPerMile / 60);
+  const paceSecs = Math.round(paceSecPerMile % 60);
 
   // Hero
   const heroLabel = document.getElementById('heroLabel');
   const heroDelta = document.getElementById('heroDelta');
-  const heroDeltaEl = document.getElementById('heroDelta');
 
   const sign = delta >= 0 ? '+' : '';
   heroDelta.textContent = `${sign}${Math.abs(delta).toFixed(2)}`;
   heroLabel.textContent = delta >= 0 ? 'Miles ahead of quota' : 'Miles behind quota';
-
-  heroDeltaEl.className = 'miles-display ' + (delta > 0.05 ? 'ahead' : delta < -0.05 ? 'behind' : 'exact');
+  heroDelta.className = 'miles-display ' + (delta > 0.05 ? 'ahead' : delta < -0.05 ? 'behind' : 'exact');
 
   document.getElementById('heroSub').textContent =
     `${totalMiles.toFixed(2)} miles run · ${quota.toFixed(2)} miles expected as of today`;
@@ -563,6 +571,9 @@ function renderDashboard(runs) {
   document.getElementById('statTotal').textContent = totalMiles.toFixed(2);
   document.getElementById('statQuota').textContent = quota.toFixed(2);
   document.getElementById('statAvg').textContent = avgPerDay.toFixed(2);
+  document.getElementById('statPace').textContent = totalMiles > 0
+    ? `${paceMins}:${paceSecs.toString().padStart(2, '0')}`
+    : '—';
 
   // Recent runs (last 10)
   const sorted = [...runs].sort((a, b) => b.date - a.date).slice(0, 10);
