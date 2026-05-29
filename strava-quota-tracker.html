@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Running Quota Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #0f0f0f;
+    color: #f0f0f0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 560px;
+  }
+
+  h1 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 32px;
+  }
+
+  /* ── Setup card ── */
+  .setup-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 28px;
+  }
+
+  .setup-card h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .setup-card p {
+    font-size: 14px;
+    color: #888;
+    line-height: 1.6;
+    margin-bottom: 20px;
+  }
+
+  .steps {
+    background: #111;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  .steps ol {
+    padding-left: 20px;
+    font-size: 13px;
+    color: #aaa;
+    line-height: 2;
+  }
+
+  .steps a { color: #fc4c02; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #666;
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], input[type="password"] {
+    width: 100%;
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #f0f0f0;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+  }
+
+  input:focus { border-color: #fc4c02; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    text-decoration: none;
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-strava { background: #fc4c02; color: #fff; }
+  .btn-secondary { background: #2a2a2a; color: #f0f0f0; }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+
+  .code-entry { margin-top: 20px; padding-top: 20px; border-top: 1px solid #222; }
+  .code-entry p { font-size: 13px; color: #888; margin-bottom: 12px; }
+
+  /* ── Main dashboard ── */
+  .dashboard { display: none; }
+
+  .hero {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .miles-display {
+    font-size: 72px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin: 8px 0;
+  }
+
+  .miles-display.ahead { color: #4ade80; }
+  .miles-display.behind { color: #f87171; }
+  .miles-display.exact { color: #f0f0f0; }
+
+  .hero-label {
+    font-size: 13px;
+    color: #666;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .hero-sub {
+    font-size: 14px;
+    color: #888;
+    margin-top: 12px;
+  }
+
+  /* Progress bar */
+  .bar-wrap {
+    background: #111;
+    border-radius: 100px;
+    height: 6px;
+    overflow: hidden;
+    margin: 24px 0 8px;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.6s ease;
+  }
+
+  .bar-fill.ahead { background: #4ade80; }
+  .bar-fill.behind { background: #f87171; }
+  .bar-fill.exact { background: #60a5fa; }
+
+  .bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #555;
+  }
+
+  /* Stats row */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 10px;
+    padding: 18px 16px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+    font-weight: 700;
+  }
+
+  .stat-sub {
+    font-size: 11px;
+    color: #555;
+    margin-top: 2px;
+  }
+
+  /* Recent runs */
+  .runs-card {
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .runs-card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #555;
+    margin-bottom: 16px;
+  }
+
+  .run-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #1f1f1f;
+    font-size: 14px;
+  }
+
+  .run-row:last-child { border-bottom: none; }
+  .run-date { color: #888; font-size: 13px; }
+  .run-miles { font-weight: 600; }
+
+  /* Footer actions */
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #444;
+  }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+    margin-right: 6px;
+  }
+
+  .error-box {
+    background: #2a1515;
+    border: 1px solid #5a2020;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #f87171;
+    margin-top: 12px;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: #444;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏃 Running Quota Tracker</h1>
+
+  <!-- Setup -->
+  <div class="setup-card" id="setup">
+    <h2>Connect to Strava</h2>
+    <p>You need a free Strava API app to pull your data. Takes about 2 minutes.</p>
+
+    <div class="steps">
+      <ol>
+        <li>Go to <a href="https://www.strava.com/settings/api" target="_blank">strava.com/settings/api</a></li>
+        <li>Create an app — name it anything (e.g. "My Tracker")</li>
+        <li>Set <strong>Authorization Callback Domain</strong> to <code>localhost</code></li>
+        <li>Copy your <strong>Client ID</strong> and <strong>Client Secret</strong> below</li>
+      </ol>
+    </div>
+
+    <label>Client ID</label>
+    <input type="text" id="clientId" placeholder="12345" />
+
+    <label>Client Secret</label>
+    <input type="password" id="clientSecret" placeholder="abc123..." />
+
+    <button class="btn btn-strava" onclick="startAuth()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.387 17.944l-2.089-4.116h-3.065L15.387 24l5.15-10.172h-3.066m-7.008-5.599l2.836 5.598h4.172L10.463 0l-7 13.828h4.169"/></svg>
+      Authorize with Strava
+    </button>
+
+    <div class="code-entry" id="codeEntry" style="display:none">
+      <p>After authorizing, Strava redirects to localhost (which won't load — that's fine). Copy the <strong>code=...</strong> value from the URL bar and paste it below.</p>
+      <label>Authorization Code</label>
+      <input type="text" id="authCode" placeholder="paste code here" />
+      <button class="btn btn-strava" onclick="exchangeCode()">Connect →</button>
+      <div id="setupError"></div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="dashboard" id="dashboard">
+    <div id="loadingMsg" class="loading">Fetching your runs…</div>
+
+    <div id="mainContent" style="display:none">
+      <div class="hero" id="hero">
+        <div class="hero-label" id="heroLabel">Miles ahead of quota</div>
+        <div class="miles-display" id="heroDelta">+0.0</div>
+        <div class="hero-sub" id="heroSub"></div>
+        <div class="bar-wrap">
+          <div class="bar-fill" id="barFill" style="width:0%"></div>
+        </div>
+        <div class="bar-labels">
+          <span id="barLeft">0 mi run</span>
+          <span id="barRight">0 mi quota</span>
+        </div>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Run</div>
+          <div class="stat-value" id="statTotal">—</div>
+          <div class="stat-sub">miles since Jan 1</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Quota</div>
+          <div class="stat-value" id="statQuota">—</div>
+          <div class="stat-sub">miles expected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg/Day</div>
+          <div class="stat-value" id="statAvg">—</div>
+          <div class="stat-sub">your pace</div>
+        </div>
+      </div>
+
+      <div class="runs-card">
+        <h3>Recent Runs</h3>
+        <div id="runsList"></div>
+      </div>
+
+      <div class="footer-row">
+        <span><span class="status-dot"></span><span id="lastUpdated">—</span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="fetchData()">Refresh</button>
+          <button class="btn btn-secondary btn-sm" onclick="logout()">Disconnect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const QUOTA_PER_DAY = 2.5;
+const START_DATE = new Date('2026-01-01T00:00:00');
+const TOKEN_URL = 'https://www.strava.com/oauth/token';
+const ACTIVITIES_URL = 'https://www.strava.com/api/v3/athlete/activities';
+const METERS_PER_MILE = 1609.344;
+
+// ── Storage ──────────────────────────────────────────────
+function save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+function load(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+
+const creds = load('strava_creds') || {};
+
+// ── Boot ─────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  if (creds.accessToken && creds.refreshToken) {
+    showDashboard();
+    fetchData();
+  }
+});
+
+// ── Auth ─────────────────────────────────────────────────
+function startAuth() {
+  const id = document.getElementById('clientId').value.trim();
+  const secret = document.getElementById('clientSecret').value.trim();
+  if (!id || !secret) { alert('Enter your Client ID and Client Secret first.'); return; }
+
+  save('strava_creds', { clientId: id, clientSecret: secret });
+  Object.assign(creds, { clientId: id, clientSecret: secret });
+
+  const params = new URLSearchParams({
+    client_id: id,
+    redirect_uri: 'http://localhost',
+    response_type: 'code',
+    approval_prompt: 'auto',
+    scope: 'activity:read_all',
+  });
+
+  window.open(`https://www.strava.com/oauth/authorize?${params}`, '_blank');
+  document.getElementById('codeEntry').style.display = 'block';
+}
+
+async function exchangeCode() {
+  const code = document.getElementById('authCode').value.trim();
+  if (!code) { alert('Paste the authorization code first.'); return; }
+
+  const errEl = document.getElementById('setupError');
+  errEl.innerHTML = '';
+
+  try {
+    const res = await fetch(TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: creds.clientId,
+        client_secret: creds.clientSecret,
+        code,
+        grant_type: 'authorization_code',
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Token exchange failed');
+
+    Object.assign(creds, {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: data.expires_at,
+    });
+    save('strava_creds', creds);
+
+    showDashboard();
+    fetchData();
+  } catch (e) {
+    errEl.innerHTML = `<div class="error-box">${e.message}</div>`;
+  }
+}
+
+async function refreshToken() {
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      client_id: creds.clientId,
+      client_secret: creds.clientSecret,
+      refresh_token: creds.refreshToken,
+      grant_type: 'refresh_token',
+    }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error('Token refresh failed — please reconnect.');
+
+  creds.accessToken = data.access_token;
+  creds.refreshToken = data.refresh_token;
+  creds.expiresAt = data.expires_at;
+  save('strava_creds', creds);
+}
+
+function logout() {
+  localStorage.removeItem('strava_creds');
+  location.reload();
+}
+
+// ── UI state ─────────────────────────────────────────────
+function showDashboard() {
+  document.getElementById('setup').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+}
+
+// ── Data fetching ─────────────────────────────────────────
+async function fetchData() {
+  document.getElementById('loadingMsg').style.display = 'block';
+  document.getElementById('mainContent').style.display = 'none';
+
+  try {
+    // Refresh token if expiring in <5min
+    if (Date.now() / 1000 > (creds.expiresAt - 300)) {
+      await refreshToken();
+    }
+
+    const startEpoch = Math.floor(START_DATE.getTime() / 1000);
+    let page = 1;
+    const runs = [];
+
+    while (true) {
+      const res = await fetch(
+        `${ACTIVITIES_URL}?after=${startEpoch}&per_page=200&page=${page}`,
+        { headers: { Authorization: `Bearer ${creds.accessToken}` } }
+      );
+      if (!res.ok) throw new Error('Failed to fetch activities');
+      const batch = await res.json();
+      if (!batch.length) break;
+
+      batch.forEach(a => {
+        if (a.type === 'Run' || a.sport_type === 'Run') {
+          runs.push({
+            date: new Date(a.start_date_local),
+            miles: a.distance / METERS_PER_MILE,
+            name: a.name,
+          });
+        }
+      });
+
+      if (batch.length < 200) break;
+      page++;
+    }
+
+    renderDashboard(runs);
+  } catch (e) {
+    document.getElementById('loadingMsg').innerHTML = `<div class="error-box">${e.message}</div>`;
+  }
+}
+
+// ── Rendering ─────────────────────────────────────────────
+function renderDashboard(runs) {
+  const now = new Date();
+
+  // Days elapsed from Jan 1 (including today as partial)
+  const msElapsed = now - START_DATE;
+  const daysElapsed = msElapsed / (1000 * 60 * 60 * 24);
+  const quota = daysElapsed * QUOTA_PER_DAY;
+
+  const totalMiles = runs.reduce((s, r) => s + r.miles, 0);
+  const delta = totalMiles - quota;
+  const avgPerDay = totalMiles / daysElapsed;
+
+  // Hero
+  const heroLabel = document.getElementById('heroLabel');
+  const heroDelta = document.getElementById('heroDelta');
+  const heroDeltaEl = document.getElementById('heroDelta');
+
+  const sign = delta >= 0 ? '+' : '';
+  heroDelta.textContent = `${sign}${Math.abs(delta).toFixed(2)}`;
+  heroLabel.textContent = delta >= 0 ? 'Miles ahead of quota' : 'Miles behind quota';
+
+  heroDeltaEl.className = 'miles-display ' + (delta > 0.05 ? 'ahead' : delta < -0.05 ? 'behind' : 'exact');
+
+  document.getElementById('heroSub').textContent =
+    `${totalMiles.toFixed(2)} miles run · ${quota.toFixed(2)} miles expected as of today`;
+
+  // Bar
+  const pct = Math.min((totalMiles / quota) * 100, 200);
+  const bar = document.getElementById('barFill');
+  bar.style.width = Math.min(pct, 100) + '%';
+  bar.className = 'bar-fill ' + (delta > 0.05 ? 'ahead' : delta < -0.05 ? 'behind' : 'exact');
+  document.getElementById('barLeft').textContent = `${totalMiles.toFixed(2)} mi run`;
+  document.getElementById('barRight').textContent = `${quota.toFixed(2)} mi quota`;
+
+  // Stats
+  document.getElementById('statTotal').textContent = totalMiles.toFixed(2);
+  document.getElementById('statQuota').textContent = quota.toFixed(2);
+  document.getElementById('statAvg').textContent = avgPerDay.toFixed(2);
+
+  // Recent runs (last 10)
+  const sorted = [...runs].sort((a, b) => b.date - a.date).slice(0, 10);
+  const listEl = document.getElementById('runsList');
+
+  if (sorted.length === 0) {
+    listEl.innerHTML = '<div style="color:#555;font-size:13px">No runs found since January 1.</div>';
+  } else {
+    listEl.innerHTML = sorted.map(r => `
+      <div class="run-row">
+        <div>
+          <div style="font-size:14px">${r.name}</div>
+          <div class="run-date">${r.date.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric' })}</div>
+        </div>
+        <div class="run-miles">${r.miles.toFixed(2)} mi</div>
+      </div>
+    `).join('');
+  }
+
+  // Footer
+  document.getElementById('lastUpdated').textContent =
+    `Updated ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+
+  document.getElementById('loadingMsg').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+}
+</script>
+</body>
+</html>
