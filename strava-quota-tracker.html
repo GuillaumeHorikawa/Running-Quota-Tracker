@@ -529,7 +529,9 @@ function renderDashboard(runs) {
   // Days elapsed from Jan 1 (including today as partial)
   const msElapsed = now - START_DATE;
   const daysElapsed = msElapsed / (1000 * 60 * 60 * 24);
-  const quota = daysElapsed * QUOTA_PER_DAY;
+  // Quota increments in discrete daily steps at midnight, not continuously
+  const daysStarted = Math.floor(daysElapsed) + 1;
+  const quota = daysStarted * QUOTA_PER_DAY;
 
   const totalMiles = runs.reduce((s, r) => s + r.miles, 0);
   const delta = totalMiles - quota;
