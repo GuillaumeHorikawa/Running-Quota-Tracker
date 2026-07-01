@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Running Quota Tracker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f2f2f7;
+    color: #111;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .container { width: 100%; max-width: 560px; }
+
+  h1 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 32px;
+  }
+
+  /* ── Cards ── */
+  .card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 28px;
+    margin-bottom: 16px;
+  }
+
+  .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
+  .card p  { font-size: 14px; color: #666; line-height: 1.6; margin-bottom: 16px; }
+
+  .steps {
+    background: #f7f7f7;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 20px;
+  }
+  .steps ol { padding-left: 20px; font-size: 13px; color: #555; line-height: 2.2; }
+  .steps a  { color: #111; font-weight: 600; }
+  .steps code {
+    background: #e8e8e8;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 6px;
+  }
+
+  input[type="text"], input[type="password"], input[type="number"], input[type="date"] {
+    width: 100%;
+    background: #f7f7f7;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 14px;
+    color: #111;
+    outline: none;
+    margin-bottom: 16px;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus { border-color: #111; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn:hover { opacity: 0.82; }
+  .btn-dark { background: #111; color: #fff; }
+  .btn-secondary { background: #ebebeb; color: #333; }
+  .btn-sm { padding: 7px 14px; font-size: 12px; }
+  .btn-danger { background: #fff0f0; color: #c0392b; border: 1px solid #ffd0d0; }
+
+  /* ── Hero ── */
+  .hero {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  .miles-display {
+    font-size: 72px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    line-height: 1;
+    margin: 8px 0;
+  }
+  .miles-display.ahead  { color: #16a34a; }
+  .miles-display.behind { color: #fc4c02; }
+  .miles-display.exact  { color: #111; }
+
+  .hero-label { font-size: 13px; color: #999; letter-spacing: 0.08em; text-transform: uppercase; }
+  .hero-sub   { font-size: 14px; color: #888; margin-top: 12px; }
+
+  .bar-wrap {
+    background: #eee;
+    border-radius: 100px;
+    height: 6px;
+    overflow: hidden;
+    margin: 24px 0 8px;
+  }
+  .bar-fill { height: 100%; border-radius: 100px; transition: width 0.6s ease; }
+  .bar-fill.ahead  { background: #16a34a; }
+  .bar-fill.behind { background: #fc4c02; }
+  .bar-fill.exact  { background: #3b82f6; }
+
+  .bar-labels { display: flex; justify-content: space-between; font-size: 12px; color: #aaa; }
+
+  /* ── Stats ── */
+  .stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .stat-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 18px 16px;
+  }
+  .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: #aaa; margin-bottom: 6px; }
+  .stat-value { font-size: 22px; font-weight: 700; }
+  .stat-sub   { font-size: 11px; color: #aaa; margin-top: 2px; }
+
+  /* ── Log run form ── */
+  .log-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .log-card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 16px;
+  }
+
+  .log-row { display: flex; gap: 12px; align-items: flex-end; }
+  .log-row .field { flex: 1; }
+  .log-row .field label { margin-bottom: 6px; }
+  .log-row input { margin-bottom: 0; }
+  .log-row .btn { flex-shrink: 0; height: 42px; }
+
+  /* ── Runs list ── */
+  .runs-card {
+    background: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .runs-card h3 {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #aaa;
+    margin-bottom: 16px;
+  }
+
+  .run-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 14px;
+  }
+  .run-row:last-child { border-bottom: none; }
+  .run-date  { color: #999; font-size: 13px; }
+  .run-miles { font-weight: 600; }
+  .run-delete {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 16px;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.15s;
+  }
+  .run-delete:hover { color: #fc4c02; }
+
+  /* ── Carry-over notice ── */
+  .carryover {
+    background: #f0f7ff;
+    border: 1px solid #cce0f5;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 16px;
+    line-height: 1.5;
+  }
+  .carryover strong { color: #111; }
+
+  /* ── Gist ID notice ── */
+  .gist-notice {
+    background: #f7f7f7;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: #555;
+    margin-bottom: 16px;
+  }
+  .gist-notice strong { color: #111; }
+  .gist-id {
+    font-family: monospace;
+    background: #e8e8e8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    user-select: all;
+  }
+
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: #bbb;
+  }
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #16a34a;
+    margin-right: 6px;
+  }
+
+  .error-box {
+    background: #fff3f0;
+    border: 1px solid #ffd0c0;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #c0392b;
+    margin-top: 12px;
+  }
+
+  .loading { text-align: center; padding: 40px; color: #bbb; font-size: 14px; }
+  .dashboard { display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🏃 Running Quota Tracker</h1>
+
+  <!-- Setup -->
+  <div id="setup" class="card">
+    <h2>Set up your tracker</h2>
+    <p>Your run data is stored in a private GitHub Gist — free, no server needed, and accessible from your phone widget too.</p>
+
+    <div class="steps">
+      <ol>
+        <li>Go to <a href="https://github.com/settings/tokens/new" target="_blank">github.com/settings/tokens/new</a></li>
+        <li>Give it a name (e.g. "Running Tracker"), set expiration to <strong>No expiration</strong></li>
+        <li>Under <em>Scopes</em>, check <code>gist</code> only</li>
+        <li>Click <strong>Generate token</strong> and paste it below</li>
+      </ol>
+    </div>
+
+    <label>GitHub Personal Access Token</label>
+    <input type="password" id="ghToken" placeholder="ghp_..." />
+
+    <button class="btn btn-dark" onclick="setupGist()">Create my tracker →</button>
+    <div id="setupError"></div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="dashboard">
+    <div id="loadingMsg" class="loading">Loading your runs…</div>
+
+    <div id="mainContent" style="display:none">
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-label" id="heroLabel">Miles ahead of quota</div>
+        <div class="miles-display" id="heroDelta">+0.00</div>
+        <div class="hero-sub" id="heroSub"></div>
+        <div class="bar-wrap">
+          <div class="bar-fill" id="barFill" style="width:0%"></div>
+        </div>
+        <div class="bar-labels">
+          <span id="barLeft">0 mi run</span>
+          <span id="barRight">0 mi quota</span>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label">Total Run</div>
+          <div class="stat-value" id="statTotal">—</div>
+          <div class="stat-sub">miles since Jan 1</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Quota</div>
+          <div class="stat-value" id="statQuota">—</div>
+          <div class="stat-sub">miles expected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Avg/Day</div>
+          <div class="stat-value" id="statAvg">—</div>
+          <div class="stat-sub">miles per day</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Runs Logged</div>
+          <div class="stat-value" id="statCount">—</div>
+          <div class="stat-sub">since Jul 1</div>
+        </div>
+      </div>
+
+      <!-- Carry-over -->
+      <div class="carryover">
+        <strong>Strava carry-over:</strong> 452.55 miles run Jan 1 – Jun 30 (2.45 mi deficit at switchover).
+      </div>
+
+      <!-- Log a run -->
+      <div class="log-card">
+        <h3>Log a Run</h3>
+        <div class="log-row">
+          <div class="field">
+            <label>Date</label>
+            <input type="date" id="runDate" />
+          </div>
+          <div class="field">
+            <label>Miles</label>
+            <input type="number" id="runMiles" step="0.01" min="0.01" placeholder="2.5" />
+          </div>
+          <button class="btn btn-dark" onclick="logRun()">Add</button>
+        </div>
+        <div id="logError"></div>
+      </div>
+
+      <!-- Recent runs -->
+      <div class="runs-card">
+        <h3>Your Runs</h3>
+        <div id="runsList"></div>
+      </div>
+
+      <!-- Gist ID (for widget setup) -->
+      <div class="gist-notice">
+        <strong>Widget setup:</strong> your Gist ID is <span class="gist-id" id="gistIdDisplay">—</span>. You'll need this when setting up the iPhone widget.
+      </div>
+
+      <!-- Footer -->
+      <div class="footer-row">
+        <span><span class="status-dot"></span><span id="lastUpdated">—</span></span>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-secondary btn-sm" onclick="loadData()">Refresh</button>
+          <button class="btn btn-secondary btn-sm" onclick="logout()">Disconnect</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const QUOTA_PER_DAY  = 2.5;
+const START_DATE     = new Date('2026-01-01T00:00:00');
+const STRAVA_MILES   = 452.5548;
+const GIST_FILENAME  = 'running-quota.json';
+const API            = 'https://api.github.com';
+
+// ── Storage ───────────────────────────────────────────────
+function save(k, v) { localStorage.setItem(k, JSON.stringify(v)); }
+function load(k)    { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+
+let cfg = load('quota_cfg') || {};   // { token, gistId }
+
+// ── Boot ──────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  if (cfg.token && cfg.gistId) {
+    showDashboard();
+    loadData();
+  }
+  // Default date input to today
+  document.getElementById('runDate').value = todayStr();
+});
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ── Setup ─────────────────────────────────────────────────
+async function setupGist() {
+  const token = document.getElementById('ghToken').value.trim();
+  if (!token) { alert('Paste your GitHub token first.'); return; }
+
+  const errEl = document.getElementById('setupError');
+  errEl.innerHTML = '';
+
+  try {
+    // Create a secret gist with initial empty run list
+    const initial = { strava_miles: STRAVA_MILES, runs: [] };
+    const res = await ghFetch(token, '/gists', 'POST', {
+      description: 'Running Quota Tracker data',
+      public: false,
+      files: {
+        [GIST_FILENAME]: { content: JSON.stringify(initial, null, 2) }
+      }
+    });
+    if (!res.id) throw new Error('Failed to create gist');
+
+    cfg = { token, gistId: res.id };
+    save('quota_cfg', cfg);
+    showDashboard();
+    loadData();
+  } catch (e) {
+    errEl.innerHTML = `<div class="error-box">${e.message}</div>`;
+  }
+}
+
+// ── GitHub API helper ─────────────────────────────────────
+async function ghFetch(token, path, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json',
+    },
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(`${API}${path}`, opts);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `GitHub API error ${res.status}`);
+  }
+  return res.json();
+}
+
+// ── Load data from Gist ───────────────────────────────────
+async function loadData() {
+  document.getElementById('loadingMsg').style.display  = 'block';
+  document.getElementById('mainContent').style.display = 'none';
+
+  try {
+    const gist = await ghFetch(cfg.token, `/gists/${cfg.gistId}`);
+    const raw  = gist.files[GIST_FILENAME]?.content;
+    if (!raw) throw new Error('Gist file not found');
+
+    const data = JSON.parse(raw);
+    render(data.runs || []);
+  } catch (e) {
+    document.getElementById('loadingMsg').innerHTML = `<div class="error-box">${e.message}</div>`;
+  }
+}
+
+// ── Save runs to Gist ─────────────────────────────────────
+async function saveRuns(runs) {
+  const content = JSON.stringify({ strava_miles: STRAVA_MILES, runs }, null, 2);
+  await ghFetch(cfg.token, `/gists/${cfg.gistId}`, 'PATCH', {
+    files: { [GIST_FILENAME]: { content } }
+  });
+}
+
+// ── Log a run ─────────────────────────────────────────────
+async function logRun() {
+  const date  = document.getElementById('runDate').value;
+  const miles = parseFloat(document.getElementById('runMiles').value);
+  const errEl = document.getElementById('logError');
+  errEl.innerHTML = '';
+
+  if (!date)          { errEl.innerHTML = '<div class="error-box">Pick a date.</div>'; return; }
+  if (!miles || miles <= 0) { errEl.innerHTML = '<div class="error-box">Enter a distance.</div>'; return; }
+
+  try {
+    // Load current runs, add new one, save back
+    const gist = await ghFetch(cfg.token, `/gists/${cfg.gistId}`);
+    const data = JSON.parse(gist.files[GIST_FILENAME].content);
+    const runs = data.runs || [];
+
+    runs.push({ id: Date.now().toString(), date, miles });
+    await saveRuns(runs);
+
+    document.getElementById('runMiles').value = '';
+    document.getElementById('runDate').value  = todayStr();
+    render(runs);
+  } catch (e) {
+    errEl.innerHTML = `<div class="error-box">${e.message}</div>`;
+  }
+}
+
+// ── Delete a run ──────────────────────────────────────────
+async function deleteRun(id) {
+  try {
+    const gist = await ghFetch(cfg.token, `/gists/${cfg.gistId}`);
+    const data = JSON.parse(gist.files[GIST_FILENAME].content);
+    const runs = (data.runs || []).filter(r => r.id !== id);
+    await saveRuns(runs);
+    render(runs);
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+// ── Render ────────────────────────────────────────────────
+function render(runs) {
+  const now = new Date();
+
+  // Quota
+  const msElapsed   = now - START_DATE;
+  const daysElapsed = msElapsed / (1000 * 60 * 60 * 24);
+  const daysStarted = Math.floor(daysElapsed) + 1;
+  const quota       = daysStarted * QUOTA_PER_DAY;
+
+  const newMiles  = runs.reduce((s, r) => s + (parseFloat(r.miles) || 0), 0);
+  const totalMiles = STRAVA_MILES + newMiles;
+  const delta      = totalMiles - quota;
+  const avgPerDay  = totalMiles / daysElapsed;
+
+  // Hero
+  const sign      = delta >= 0 ? '+' : '';
+  const heroDelta = document.getElementById('heroDelta');
+  heroDelta.textContent = `${sign}${Math.abs(delta).toFixed(2)}`;
+  heroDelta.className   = 'miles-display ' + (delta > 0.05 ? 'ahead' : delta < -0.05 ? 'behind' : 'exact');
+  document.getElementById('heroLabel').textContent = delta >= 0 ? 'Miles ahead of quota' : 'Miles behind quota';
+  document.getElementById('heroSub').textContent   =
+    `${totalMiles.toFixed(2)} miles run · ${quota.toFixed(2)} miles expected as of today`;
+
+  // Bar
+  const pct = Math.min((totalMiles / quota) * 100, 100);
+  const bar = document.getElementById('barFill');
+  bar.style.width = pct + '%';
+  bar.className   = 'bar-fill ' + (delta > 0.05 ? 'ahead' : delta < -0.05 ? 'behind' : 'exact');
+  document.getElementById('barLeft').textContent  = `${totalMiles.toFixed(2)} mi run`;
+  document.getElementById('barRight').textContent = `${quota.toFixed(2)} mi quota`;
+
+  // Stats
+  document.getElementById('statTotal').textContent = totalMiles.toFixed(2);
+  document.getElementById('statQuota').textContent = quota.toFixed(2);
+  document.getElementById('statAvg').textContent   = avgPerDay.toFixed(2);
+  document.getElementById('statCount').textContent = runs.length;
+
+  // Runs list
+  const sorted = [...runs].sort((a, b) => b.date.localeCompare(a.date));
+  const listEl = document.getElementById('runsList');
+
+  if (sorted.length === 0) {
+    listEl.innerHTML = '<div style="color:#aaa;font-size:13px;padding:8px 0">No runs logged yet — add your first one above.</div>';
+  } else {
+    listEl.innerHTML = sorted.map(r => {
+      const d = new Date(r.date + 'T12:00:00');
+      const label = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      return `
+        <div class="run-row">
+          <div class="run-date">${label}</div>
+          <div class="run-miles">${parseFloat(r.miles).toFixed(2)} mi</div>
+          <button class="run-delete" onclick="deleteRun('${r.id}')" title="Delete">×</button>
+        </div>`;
+    }).join('');
+  }
+
+  // Gist ID
+  document.getElementById('gistIdDisplay').textContent = cfg.gistId;
+
+  // Footer
+  document.getElementById('lastUpdated').textContent =
+    `Updated ${now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+
+  document.getElementById('loadingMsg').style.display  = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+}
+
+function showDashboard() {
+  document.getElementById('setup').style.display    = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+}
+
+function logout() {
+  localStorage.removeItem('quota_cfg');
+  location.reload();
+}
+</script>
+</body>
+</html>
