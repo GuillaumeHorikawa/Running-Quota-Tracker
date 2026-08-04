@@ -7,13 +7,12 @@
 //    (check "gist" scope, set no expiration) — or reuse the same one
 // 4. Paste both values below
 
-const GITHUB_TOKEN = "YOUR_GITHUB_TOKEN";
-const GIST_ID      = "YOUR_GIST_ID";
+const GITHUB_TOKEN = "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";
+const GIST_ID      = "RQT3";
 
 // ── Config ────────────────────────────────────────────────
 const QUOTA_PER_DAY = 2.5;
 const START_DATE    = new Date("2026-01-01T00:00:00");
-const STRAVA_MILES  = 452.5548;
 const GIST_FILENAME = "running-quota.json";
 
 // ── Fetch data from Gist ──────────────────────────────────
@@ -85,7 +84,7 @@ function buildWidget(delta, totalMiles, quota, runCount, error) {
 
   w.addSpacer(2);
 
-  const countEl = w.addText(`${runCount} run${runCount !== 1 ? "s" : ""} logged since Jul 1`);
+  const countEl = w.addText(`${runCount} run${runCount !== 1 ? "s" : ""} logged since Jan 1`);
   countEl.textColor = new Color("#bbbbbb");
   countEl.font = Font.systemFont(10);
 
@@ -105,8 +104,7 @@ async function main() {
   let widget;
   try {
     const runs       = await fetchRuns();
-    const newMiles   = runs.reduce((s, r) => s + (parseFloat(r.miles) || 0), 0);
-    const totalMiles = STRAVA_MILES + newMiles;
+    const totalMiles = runs.reduce((s, r) => s + (parseFloat(r.miles) || 0), 0);
     const quota      = calcQuota();
     const delta      = totalMiles - quota;
     widget = buildWidget(delta, totalMiles, quota, runs.length, null);
