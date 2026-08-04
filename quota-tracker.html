@@ -282,13 +282,17 @@
         <li>Give it a name (e.g. "Running Tracker"), set expiration to <strong>No expiration</strong></li>
         <li>Under <em>Scopes</em>, check <code>gist</code> only</li>
         <li>Click <strong>Generate token</strong> and paste it below</li>
+        <li>Opening this on a <strong>second device</strong> (like your phone) that should share the same data? Paste your existing Gist ID too — find it on the "Widget setup" line of the dashboard on the device you already set up.</li>
       </ol>
     </div>
 
     <label>GitHub Personal Access Token</label>
     <input type="password" id="ghToken" placeholder="ghp_..." />
 
-    <button class="btn btn-dark" onclick="setupGist()">Create my tracker →</button>
+    <label>Existing Gist ID (leave blank to start a brand-new tracker)</label>
+    <input type="text" id="ghGistId" placeholder="Only fill this in if you're connecting a second device" />
+
+    <button class="btn btn-dark" onclick="setupGist()">Connect →</button>
     <div id="setupError"></div>
   </div>
 
@@ -403,25 +407,40 @@ function todayStr() {
 
 // ── Setup ─────────────────────────────────────────────────
 async function setupGist() {
-  const token = document.getElementById('ghToken').value.trim();
+  const token       = document.getElementById('ghToken').value.trim();
+  const existingId  = document.getElementById('ghGistId').value.trim();
   if (!token) { alert('Paste your GitHub token first.'); return; }
 
   const errEl = document.getElementById('setupError');
   errEl.innerHTML = '';
 
   try {
-    // Create a secret gist with initial empty run list
-    const initial = { runs: [] };
-    const res = await ghFetch(token, '/gists', 'POST', {
-      description: 'Running Quota Tracker data',
-      public: false,
-      files: {
-        [GIST_FILENAME]: { content: JSON.stringify(initial, null, 2) }
-      }
-    });
-    if (!res.id) throw new Error('Failed to create gist');
+    let gistId;
 
-    cfg = { token, gistId: res.id };
+    if (existingId) {
+      // Connecting a second device to a tracker that already exists —
+      // verify the gist exists and is reachable with this token, but
+      // never create a new one or touch its contents.
+      const existing = await ghFetch(token, `/gists/${existingId}`);
+      if (!existing.files || !existing.files[GIST_FILENAME]) {
+        throw new Error(`That gist doesn't have a ${GIST_FILENAME} file — check the ID.`);
+      }
+      gistId = existingId;
+    } else {
+      // Create a secret gist with initial empty run list
+      const initial = { runs: [] };
+      const res = await ghFetch(token, '/gists', 'POST', {
+        description: 'Running Quota Tracker data',
+        public: false,
+        files: {
+          [GIST_FILENAME]: { content: JSON.stringify(initial, null, 2) }
+        }
+      });
+      if (!res.id) throw new Error('Failed to create gist');
+      gistId = res.id;
+    }
+
+    cfg = { token, gistId };
     save('quota_cfg', cfg);
     showDashboard();
     loadData();
@@ -462,7 +481,9 @@ async function loadData() {
     const data = JSON.parse(raw);
     render(data.runs || []);
   } catch (e) {
-    document.getElementById('loadingMsg').innerHTML = `<div class="error-box">${e.message}</div>`;
+    document.getElementById('loadingMsg').innerHTML =
+      `<div class="error-box">${e.message}</div>
+       <button class="btn btn-secondary btn-sm" style="margin-top:12px" onclick="logout()">Disconnect &amp; start over</button>`;
   }
 }
 
