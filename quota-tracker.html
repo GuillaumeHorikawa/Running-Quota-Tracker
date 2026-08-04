@@ -218,19 +218,6 @@
   }
   .run-delete:hover { color: #fc4c02; }
 
-  /* ── Carry-over notice ── */
-  .carryover {
-    background: #f0f7ff;
-    border: 1px solid #cce0f5;
-    border-radius: 10px;
-    padding: 14px 16px;
-    font-size: 13px;
-    color: #555;
-    margin-bottom: 16px;
-    line-height: 1.5;
-  }
-  .carryover strong { color: #111; }
-
   /* ── Gist ID notice ── */
   .gist-notice {
     background: #f7f7f7;
@@ -344,13 +331,8 @@
         <div class="stat-card">
           <div class="stat-label">Runs Logged</div>
           <div class="stat-value" id="statCount">—</div>
-          <div class="stat-sub">since Jul 1</div>
+          <div class="stat-sub">since Jan 1</div>
         </div>
-      </div>
-
-      <!-- Carry-over -->
-      <div class="carryover">
-        <strong>Strava carry-over:</strong> 452.55 miles run Jan 1 – Jun 30 (2.45 mi deficit at switchover).
       </div>
 
       <!-- Log a run -->
@@ -396,7 +378,6 @@
 <script>
 const QUOTA_PER_DAY  = 2.5;
 const START_DATE     = new Date('2026-01-01T00:00:00');
-const STRAVA_MILES   = 452.5548;
 const GIST_FILENAME  = 'running-quota.json';
 const API            = 'https://api.github.com';
 
@@ -430,7 +411,7 @@ async function setupGist() {
 
   try {
     // Create a secret gist with initial empty run list
-    const initial = { strava_miles: STRAVA_MILES, runs: [] };
+    const initial = { runs: [] };
     const res = await ghFetch(token, '/gists', 'POST', {
       description: 'Running Quota Tracker data',
       public: false,
@@ -487,7 +468,7 @@ async function loadData() {
 
 // ── Save runs to Gist ─────────────────────────────────────
 async function saveRuns(runs) {
-  const content = JSON.stringify({ strava_miles: STRAVA_MILES, runs }, null, 2);
+  const content = JSON.stringify({ runs }, null, 2);
   await ghFetch(cfg.token, `/gists/${cfg.gistId}`, 'PATCH', {
     files: { [GIST_FILENAME]: { content } }
   });
@@ -543,8 +524,7 @@ function render(runs) {
   const daysStarted = Math.floor(daysElapsed) + 1;
   const quota       = daysStarted * QUOTA_PER_DAY;
 
-  const newMiles  = runs.reduce((s, r) => s + (parseFloat(r.miles) || 0), 0);
-  const totalMiles = STRAVA_MILES + newMiles;
+  const totalMiles = runs.reduce((s, r) => s + (parseFloat(r.miles) || 0), 0);
   const delta      = totalMiles - quota;
   const avgPerDay  = totalMiles / daysElapsed;
 
